@@ -21,6 +21,8 @@
 
 #include "fon.h" /* Primitives de la boite a outils */
 
+#include "jeu.h"
+
 #define SERVICE_DEFAUT "1111"
 
 void serveur_appli(char *service); /* programme serveur */
@@ -70,6 +72,8 @@ void serveur_appli(char *service)
     char buffer[n];
     reads = h_reads(num_socket, buffer, n);
     /*jeu*/
+    char tampon[16];
+    int len_tampon = 16;
     int writes = h_writes(num_socket, tampon, len_tampon);
   }
   h_close(num_socket);
