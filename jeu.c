@@ -3,10 +3,9 @@
 #include <stdlib.h>
 #include <time.h>
 
-// niveau
 int n;
-// win =0 jeu en cours
 int win;
+char *sol;
 
 char t[] = "rjvbovf";
 
@@ -21,10 +20,11 @@ char *init(int n) {
   }
   tab[n] = '\0';
   win = 0;
+  sol = tab;
   return tab;
 }
 
-char *check(char *seq, char *sol, int n) {
+char *check(char *seq, int n) {
   char *res = malloc((n + 1) * sizeof(char));
   if (res == NULL)
     return NULL;

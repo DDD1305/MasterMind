@@ -1,7 +1,11 @@
-// niveau
-extern int n;
+#ifndef JEU_H
+#define JEU_H
 
-// win =0 jeu en cours
+extern int n;
 extern int win;
+extern char *sol;
 
 char *init(int n);
+char *check(char *seq, int n);
+
+#endif

@@ -49,6 +49,10 @@ client : ${OBJ1}
 serveur : ${OBJ2}	
 	gcc $(LFLAGS) ${OBJ2} -o serveur -lcurses   $(OPTIONS)
 
+# jeu.o : jeu.h jeu.c
+# 	gcc -DDEBUG -c jeu.c
+#  	#gcc -c jeu.c
+
 
 
 clean : 

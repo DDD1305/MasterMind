@@ -15,6 +15,7 @@
 #include <stdio.h>
 
 #include <stdlib.h>
+#include <string.h>
 #include <sys/signal.h>
 #include <sys/socket.h>
 #include <sys/wait.h>
@@ -71,19 +72,35 @@ void serveur_appli(char *service)
   int niveau_reseau;
   reads = h_reads(num_socNew, (char *)&niveau_reseau, sizeof(int));
   if (reads != sizeof(int)) {
-    printf("n mauvais format");
+    printf("n mauvais format\n");
     return;
   }
-
   n = ntohl(niveau_reseau);
+  if (n <= 0 || n > 100) {
+    printf("niveau invalide\n");
+    return;
+  }
   init(n);
-  while (win && reads) {
+  fflush(stdout);
+  h_writes(num_socNew, "Entrer la proposition",
+           strlen("Entrer la proposition"));
+  int taille_buff = 4096;
+  while (!win && reads) {
     char buffer[n];
     reads = h_reads(num_socNew, buffer, n);
-    /*jeu*/
-    char tampon[16];
-    int len_tampon = 16;
-    int writes = h_writes(num_socNew, tampon, len_tampon);
+    if (reads != n) {
+      printf("msg pas de la bonne taille\n");
+      break;
+    }
+    char *try = check(buffer, n);
+    int writes = h_writes(num_socNew, try, n);
+    if (writes != n) {
+      printf("probleme ecriture\n");
+      break;
+    }
+    printf("\n");
+    h_writes(num_socNew, "Entrer la proposition",
+             strlen("Entrer la proposition"));
   }
   h_close(num_socket);
   h_close(num_socNew);
