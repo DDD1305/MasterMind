@@ -16,6 +16,7 @@
 #include <sys/signal.h>
 #include <sys/wait.h>
 #include<stdlib.h>
+#include<string.h>
 
 #include "fon.h"   		/* primitives de la boite a outils */
 
@@ -68,10 +69,20 @@ void client_appli (char *serveur,char *service)
 /* procedure correspondant au traitement du client de votre application */
 
 {
-  
-
-/* a completer .....  */
-
+	int socket = h_socket(AF_INET,SOCK_STREAM);
+	struct sockaddr_in* p_adr_socket;
+	adr_socket(service,serveur,SOCK_STREAM, &p_adr_socket);
+	h_connect(socket,p_adr_socket);
+	int taille_buff = 4096;
+	char* tampon = malloc(taille_buff);
+	printf("Envoyer un message : \n");
+	scanf("%s",tampon);
+	/* Code du jeu*/
+	h_writes(socket, tampon, taille_buff);
+	h_reads(socket,tampon,taille_buff);
+	printf("Message reçu : %s\n",tampon);
+	h_close(socket);
+	free(tampon);
  }
 
 /*****************************************************************************/
