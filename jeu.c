@@ -3,6 +3,11 @@
 #include <stdlib.h>
 #include <time.h>
 
+// niveau
+int n;
+// win =0 jeu en cours
+int win;
+
 char t[] = "rjvbovf";
 
 char *init(int n) {
@@ -47,7 +52,7 @@ char *check(char *seq, char *sol, int n) {
   res[n] = '\0';
   return res;
 }
-
+/*
 int main() {
   srand(time(NULL));
 
@@ -68,4 +73,4 @@ int main() {
   free(verif);
 
   return 0;
-}
+}*/

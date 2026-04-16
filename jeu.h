@@ -1,4 +1,7 @@
 // niveau
-int n;
+extern int n;
+
 // win =0 jeu en cours
-int win;
+extern int win;
+
+char *init(int n);

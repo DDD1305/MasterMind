@@ -1,6 +1,6 @@
 
-OBJ1 = fon.o client.o 
-OBJ2 = fon.o serveur.o 
+OBJ1 = fon.o client.o jeu.o
+OBJ2 = fon.o serveur.o jeu.o
 OPTIONS	=
 # Adaptation a Darwin / MacOS X avec fink
 # Du fait de l'absence de libtermcap on se fait pas mal

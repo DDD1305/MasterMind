@@ -65,18 +65,28 @@ void serveur_appli(char *service)
   struct sockaddr_in *adr;
   adr_socket(service, NULL, SOCK_STREAM, &adr);
   h_bind(num_socket, adr);
-  char buf[65535];
-  h_recvfrom(num_socket, buf, 65535, adr);
+  h_listen(num_socket, 32);
+  int num_socNew = h_accept(num_socket, adr);
   int reads = 1;
+  int niveau_reseau;
+  reads = h_reads(num_socNew, (char *)&niveau_reseau, sizeof(int));
+  if (reads != sizeof(int)) {
+    printf("n mauvais format");
+    return;
+  }
+
+  n = ntohl(niveau_reseau);
+  init(n);
   while (win && reads) {
     char buffer[n];
-    reads = h_reads(num_socket, buffer, n);
+    reads = h_reads(num_socNew, buffer, n);
     /*jeu*/
     char tampon[16];
     int len_tampon = 16;
-    int writes = h_writes(num_socket, tampon, len_tampon);
+    int writes = h_writes(num_socNew, tampon, len_tampon);
   }
   h_close(num_socket);
+  h_close(num_socNew);
 }
 
 /******************************************************************************/
