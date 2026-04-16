@@ -74,22 +74,27 @@ void client_appli(char *serveur, char *service)
   int taille_buff = 4096;
   char *tampon_read = malloc(taille_buff);
   char *tampon_write = malloc(taille_buff);
+
   int niveau;
   printf("Entrer le niveau : ");
   scanf("%d", &niveau);
   int niveau_reseau = htonl(niveau);
   h_writes(socket, (char *)&niveau_reseau, sizeof(int));
   int reads = 1;
+  char *tampon_try = malloc(n);
   while (!win && reads) {
     reads = h_reads(socket, tampon_read, 21);
     printf("%.*s\n", reads, tampon_read);
     scanf("%s", tampon_write);
     h_writes(socket, tampon_write, taille_buff);
+    reads = h_reads(socket, tampon_try, 1);
+    printf("%.*s\n", reads, tampon_try);
   }
 
   h_close(socket);
   free(tampon_read);
   free(tampon_write);
+  free(tampon_try);
 }
 
 /*****************************************************************************/

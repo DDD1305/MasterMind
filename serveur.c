@@ -98,9 +98,8 @@ void serveur_appli(char *service)
       printf("probleme ecriture\n");
       break;
     }
-    printf("\n");
-    h_writes(num_socNew, "Entrer la proposition",
-             strlen("Entrer la proposition"));
+    h_writes(num_socNew, "\nEntrer la proposition",
+             strlen("Entrer la propositionnn"));
   }
   h_close(num_socket);
   h_close(num_socNew);
