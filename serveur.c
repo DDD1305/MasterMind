@@ -89,18 +89,30 @@ void serveur_appli(char *service)
     char buffer[n];
     reads = h_reads(num_socNew, buffer, n);
     if (reads != n) {
-      printf("msg pas de la bonne taille\n");
+      printf("msg pas de la bonne taille ou client deconnecte\n");
       break;
     }
+    
     char *try = check(buffer, n);
-    int writes = h_writes(num_socNew, try, n);
+    int writes = h_writes(num_socNew, try, n); // On envoie "TMF..."
     if (writes != n) {
       printf("probleme ecriture\n");
+      free(try);
       break;
     }
+    
+    // Si la fonction check a passé win à 1, la partie est finie
+    if (win) {
+      free(try);
+      break; 
+    }
+
     printf("\n");
+    // Seulement si le jeu continue, on redemande une proposition
     h_writes(num_socNew, "Entrer la proposition",
              strlen("Entrer la proposition"));
+             
+    free(try); // Très important : empêche la fuite de mémoire à chaque tour
   }
   h_close(num_socket);
   h_close(num_socNew);

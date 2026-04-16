@@ -71,7 +71,7 @@ void client_appli(char *serveur, char *service)
   struct sockaddr_in *p_adr_socket;
   adr_socket(service, serveur, SOCK_STREAM, &p_adr_socket);
   h_connect(socket, p_adr_socket);
-  int taille_buff = 4096;
+  int taille_buff = n;
   char *tampon_read = malloc(taille_buff);
   char *tampon_write = malloc(taille_buff);
   int niveau;
@@ -80,11 +80,37 @@ void client_appli(char *serveur, char *service)
   int niveau_reseau = htonl(niveau);
   h_writes(socket, (char *)&niveau_reseau, sizeof(int));
   int reads = 1;
-  while (!win && reads) {
+  int partie_gagnee = 0;
+  
+  while (!partie_gagnee) {
+    // 1. Lire l'invitation du serveur ("Entrer la proposition" - 21 octets)
     reads = h_reads(socket, tampon_read, 21);
+    if (reads <= 0) break;
     printf("%.*s\n", reads, tampon_read);
+
+    // 2. Saisir la proposition (attention : l'utilisateur doit taper tout attaché, ex: "RVBB")
     scanf("%s", tampon_write);
-    h_writes(socket, tampon_write, taille_buff);
+
+    // 3. Envoyer UNIQUEMENT la taille attendue par le serveur (niveau)
+    h_writes(socket, tampon_write, niveau);
+
+    // 4. Lire la réponse du serveur (qui fait exactement 'niveau' octets)
+    reads = h_reads(socket, tampon_read, niveau);
+    if (reads <= 0) break;
+    printf("Résultat : %.*s\n\n", niveau, tampon_read);
+
+    // 5. Vérifier localement si la partie est gagnée (uniquement des 'T')
+    partie_gagnee = 1;
+    for (int i = 0; i < niveau; i++) {
+      if (tampon_read[i] != 'T') {
+        partie_gagnee = 0;
+        break;
+      }
+    }
+    
+    if (partie_gagnee) {
+      printf("Bravo, vous avez trouvé la bonne combinaison !\n");
+    }
   }
 
   h_close(socket);
