@@ -13,7 +13,6 @@
 #include <curses.h> /* Primitives de gestion d'ecran */
 #include <stdio.h>
 #include <stdlib.h>
-#include <string.h>
 #include <sys/signal.h>
 #include <sys/wait.h>
 
@@ -81,14 +80,16 @@ void client_appli(char *serveur, char *service)
   h_writes(socket, (char *)&niveau_reseau, sizeof(int));
   int reads = 1;
   int partie_gagnee = 0;
-  
+
   while (!partie_gagnee) {
     // 1. Lire l'invitation du serveur ("Entrer la proposition" - 21 octets)
     reads = h_reads(socket, tampon_read, 21);
-    if (reads <= 0) break;
+    if (reads <= 0)
+      break;
     printf("%.*s\n", reads, tampon_read);
 
-    // 2. Saisir la proposition (attention : l'utilisateur doit taper tout attaché, ex: "RVBB")
+    // 2. Saisir la proposition (attention : l'utilisateur doit taper tout
+    // attaché, ex: "RVBB")
     scanf("%s", tampon_write);
 
     // 3. Envoyer UNIQUEMENT la taille attendue par le serveur (niveau)
@@ -96,7 +97,8 @@ void client_appli(char *serveur, char *service)
 
     // 4. Lire la réponse du serveur (qui fait exactement 'niveau' octets)
     reads = h_reads(socket, tampon_read, niveau);
-    if (reads <= 0) break;
+    if (reads <= 0)
+      break;
     printf("Résultat : %.*s\n\n", niveau, tampon_read);
 
     // 5. Vérifier localement si la partie est gagnée (uniquement des 'T')
@@ -107,7 +109,7 @@ void client_appli(char *serveur, char *service)
         break;
       }
     }
-    
+
     if (partie_gagnee) {
       printf("Bravo, vous avez trouvé la bonne combinaison !\n");
     }

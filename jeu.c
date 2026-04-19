@@ -1,5 +1,4 @@
 #include "jeu.h"
-#include <stdio.h>
 #include <stdlib.h>
 #include <time.h>
 
@@ -8,7 +7,7 @@ int win;
 char *sol = NULL; // Initialiser à NULL
 
 // 'p' pour Pourpre/Violet à la place du double 'v'
-char t[] = "rjvbopf"; 
+char t[] = "rjvbopf";
 
 char *init(int n) {
   // Initialisation de la graine aléatoire une seule fois
@@ -24,7 +23,8 @@ char *init(int n) {
   }
 
   char *tab = malloc((n + 1) * sizeof(char));
-  if (tab == NULL) return NULL;
+  if (tab == NULL)
+    return NULL;
 
   for (int i = 0; i < n; i++) {
     int index = rand() % 7;
@@ -38,15 +38,16 @@ char *init(int n) {
 
 char *check(char *seq, int n) {
   char *res = malloc((n + 1) * sizeof(char));
-  if (res == NULL) return NULL;
+  if (res == NULL)
+    return NULL;
 
   // Création d'une copie de la solution et de la séquence pour les marquer
   char sol_temp[n];
   char seq_temp[n];
-  for(int i = 0; i < n; i++) {
-      sol_temp[i] = sol[i];
-      seq_temp[i] = seq[i];
-      res[i] = 'F'; // Par défaut tout est faux
+  for (int i = 0; i < n; i++) {
+    sol_temp[i] = sol[i];
+    seq_temp[i] = seq[i];
+    res[i] = 'F'; // Par défaut tout est faux
   }
 
   // 1ère passe : Trouver les Bien Placés (T)
@@ -60,7 +61,8 @@ char *check(char *seq, int n) {
 
   // 2ème passe : Trouver les Mal Placés (M)
   for (int i = 0; i < n; i++) {
-    if (seq_temp[i] == 'Y') continue; // Déjà validé en 'T'
+    if (seq_temp[i] == 'Y')
+      continue; // Déjà validé en 'T'
 
     for (int j = 0; j < n; j++) {
       if (seq_temp[i] == sol_temp[j]) {
@@ -82,25 +84,3 @@ char *check(char *seq, int n) {
   res[n] = '\0';
   return res;
 }
-/*
-int main() {
-  srand(time(NULL));
-
-  char *sol = init(n);
-  printf("Solution : %s\n", sol);
-
-  char entree[n];
-  printf("Entrez votre sequence : ");
-  scanf("%49s", entree);
-
-  char *verif = check(entree, sol, n);
-
-  for (int i = 0; i < n; i++) {
-    printf("Position %d : %c\n", i, verif[i]);
-  }
-
-  free(sol);
-  free(verif);
-
-  return 0;
-}*/
