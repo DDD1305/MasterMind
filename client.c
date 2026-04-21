@@ -13,8 +13,10 @@
 #include <curses.h> /* Primitives de gestion d'ecran */
 #include <stdio.h>
 #include <stdlib.h>
+#include <string.h>
 #include <sys/signal.h>
 #include <sys/wait.h>
+#include <unistd.h>
 
 #include "fon.h" /* primitives de la boite a outils */
 
@@ -60,60 +62,115 @@ int main(int argc, char *argv[]) {
   client_appli(serveur, service);
 }
 
+int socketClient;
+
+int init_TCP_com(char *serveur, char *service) {
+  int socket = h_socket(AF_INET, SOCK_STREAM);
+  struct sockaddr_in *p_adr_socket;
+  adr_socket(service, serveur, SOCK_STREAM, &p_adr_socket);
+  h_connect(socket, p_adr_socket);
+  return socket;
+}
+
+int ask_level(int socket) {
+  int niveau;
+  printf("Entrer le niveau : ");
+  scanf("%d", &niveau);
+  int niveau_reseau = htonl(niveau);
+  int write = h_writes(socket, (char *)&niveau_reseau, sizeof(int));
+  if (write != sizeof(int)) {
+    return -1;
+  }
+  return 0;
+}
+
+int send_msg(char *msg) {
+  int len = strlen(msg);
+  int write = h_writes(socketClient, (char *)&len,
+                       sizeof(int)); // d'abord la taille du msg
+  if (write != sizeof(int)) {
+    return -1;
+  }
+  write = h_writes(socketClient, msg, len);
+  if (write != len) {
+    return -1;
+  }
+  return write;
+}
+
+int receive_msg(char *tampon, int taille) {
+  int len;
+  int read = h_reads(socketClient, (char *)&len,
+                     sizeof(int)); // On lit d'abord la taille
+  if (read != sizeof(int)) {
+    return -1;
+  }
+  if (len > taille) {
+    printf("buffer tampon trop petit");
+    return -1;
+  }
+  read = h_reads(socketClient, tampon, len);
+  if (read != len) {
+    return -1;
+  }
+  return read; // retourne la taille du msg lu ou -1 si erreur.
+}
+
 /*****************************************************************************/
 void client_appli(char *serveur, char *service)
 
 /* procedure correspondant au traitement du client de votre application */
 
 {
-  int socket = h_socket(AF_INET, SOCK_STREAM);
-  struct sockaddr_in *p_adr_socket;
-  adr_socket(service, serveur, SOCK_STREAM, &p_adr_socket);
-  h_connect(socket, p_adr_socket);
-  int taille_buff = n;
+  socketClient = init_TCP_com(serveur, service);
+  int taille_buff = level + 1;
   char *tampon_read = malloc(taille_buff);
+  if (tampon_read == NULL) {
+    printf("Erreur allocation tampon_read");
+    goto cleanup;
+  }
   char *tampon_write = malloc(taille_buff);
-  int niveau;
-  printf("Entrer le niveau : ");
-  scanf("%d", &niveau);
-  int niveau_reseau = htonl(niveau);
-  h_writes(socket, (char *)&niveau_reseau, sizeof(int));
-  int reads = 1;
-  int partie_gagnee = 0;
+  if (tampon_write == NULL) {
+    printf("Erreur à l'allocation tampon_write");
+    goto cleanup;
+  }
+  if (ask_level(socket) == -1) {
+    printf("Erreur à la récupération du niveau\n");
+  }
 
-  while (!partie_gagnee) {
+  while (!win) {
     // 1. Lire l'invitation du serveur ("Entrer la proposition" - 21 octets)
-    reads = h_reads(socket, tampon_read, 21);
-    if (reads <= 0)
-      break;
-    printf("%.*s\n", reads, tampon_read);
+    int read = receive_msg(tampon_read, taille_buff);
+    if (read == -1) {
+      printf("Erreur réception de msg\n");
+      goto cleanup;
+    }
+    printf("%.*s\n", read, tampon_read);
 
     // 2. Saisir la proposition (attention : l'utilisateur doit taper tout
     // attaché, ex: "RVBB")
-    scanf("%s", tampon_write);
-
-    // 3. Envoyer UNIQUEMENT la taille attendue par le serveur (niveau)
-    h_writes(socket, tampon_write, niveau);
-
-    // 4. Lire la réponse du serveur (qui fait exactement 'niveau' octets)
-    reads = h_reads(socket, tampon_read, niveau);
-    if (reads <= 0)
-      break;
-    printf("Résultat : %.*s\n\n", niveau, tampon_read);
-
-    // 5. Vérifier localement si la partie est gagnée (uniquement des 'T')
-    partie_gagnee = 1;
-    for (int i = 0; i < niveau; i++) {
-      if (tampon_read[i] != 'T') {
-        partie_gagnee = 0;
-        break;
+    int take = 0;
+    while (!take) {
+      scanf("%s", tampon_write);
+      if (tampon_write[taille_buff] == '\0') {
+        take = 1;
       }
     }
 
-    if (partie_gagnee) {
-      printf("Bravo, vous avez trouvé la bonne combinaison !\n");
-    }
+    // 3. Envoyer UNIQUEMENT la taille attendue par le serveur (niveau)
+    h_writes(socket, tampon_write, level);
+
+    // 4. Lire la réponse du serveur (qui fait exactement 'niveau' octets)
+    reads = h_reads(socket, tampon_read, level);
+    if (reads <= 0)
+      break;
+    printf("Résultat : %.*s\n\n", level, tampon_read);
   }
+
+  if (!win) {
+    printf("Bravo, vous avez trouvé la bonne combinaison !\n");
+  }
+cleanup:
 
   h_close(socket);
   free(tampon_read);

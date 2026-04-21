@@ -1,7 +1,7 @@
 #ifndef JEU_H
 #define JEU_H
 
-extern int n;
+extern int level;
 extern int win;
 extern char *sol;
 

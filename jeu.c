@@ -2,7 +2,7 @@
 #include <stdlib.h>
 #include <time.h>
 
-int n;
+int level;
 int win;
 char *sol = NULL; // Initialiser à NULL
 

@@ -12,7 +12,6 @@
 /******************************************************************************/
 
 #include <curses.h>
-#include <set>
 #include <stdio.h>
 
 #include <stdlib.h>
@@ -20,6 +19,7 @@
 #include <sys/signal.h>
 #include <sys/socket.h>
 #include <sys/wait.h>
+#include <unistd.h>
 
 #include "fon.h" /* Primitives de la boite a outils */
 
@@ -74,9 +74,53 @@ void init_TCP_com(char *service) {
   client.num_socketCom = h_accept(client.num_socketInit, adr);
 }
 
-void send_msg(char *msg) { h_writes(int num_soc, char *tampon, int nb_octets) }
+int send_msg(socket_tcp socket, char *msg) {
+  int len = strlen(msg);
+  int write = h_writes(socket.num_socketCom, (char *)&len,
+                       sizeof(int)); // d'abord la taille du msg
+  if (write != sizeof(int)) {
+    return -1;
+  }
+  write = h_writes(socket.num_socketCom, msg, len);
+  if (write != len) {
+    return -1;
+  }
+  return write;
+}
 
-char *receive_msg() {}
+int receive_msg(socket_tcp socket, char *tampon, int taille) {
+  int len;
+  int read = h_reads(socket.num_socketCom, (char *)&len,
+                     sizeof(int)); // On lit d'abord la taille
+  if (read != sizeof(int)) {
+    return -1;
+  }
+  if (len > taille) {
+    printf("buffer tampon trop petit");
+    return -1;
+  }
+  read = h_reads(socket.num_socketCom, tampon, len);
+  if (read != len) {
+    return -1;
+  }
+  return read; // retourne la taille du msg lu ou -1 si erreur.
+}
+
+int receive_level(socket_tcp socket) {
+  int niveau_reseau;
+  int reads =
+      h_reads(socket.num_socketCom, (char *)&niveau_reseau, sizeof(int));
+  if (reads != sizeof(int)) {
+    printf("n mauvais format\n");
+    return -1;
+  }
+  level = ntohl(niveau_reseau);
+  if (level <= 0 || level > 100) {
+    printf("niveau invalide\n");
+    return -1;
+  }
+  return 0; // pas d'erreur
+}
 
 void serveur_appli(char *service)
 
@@ -84,54 +128,50 @@ void serveur_appli(char *service)
 
 {
   init_TCP_com(service);
-  int reads = 1;
-  int niveau_reseau;
-  reads = h_reads(client.num_socketCom, (char *)&niveau_reseau, sizeof(int));
-  // Traveau ici comment faire la diff et enfaite le cleinet sait trop de chose
-  if (reads != sizeof(int)) {
-    printf("n mauvais format\n");
-    return;
+
+  // On récupère le niveau
+  int read = receive_level(client);
+  if (read == -1) {
+    printf("Erreur récupération level");
+    goto cleanup;
   }
-  n = ntohl(niveau_reseau);
-  if (n <= 0 || n > 100) {
-    printf("niveau invalide\n");
-    return;
+
+  // On initialise le jeu.
+  init(level);
+  char *answer = NULL;
+  char *try = malloc(n + 1); // pour avoir la chaine de taille n et \0
+  if (try == NULL) {
+    printf("erreur alloction try");
+    goto cleanup;
   }
-  init(n);
-  h_writes(num_socNew, "Entrer la proposition",
-           strlen("Entrer la proposition"));
-  int taille_buff = 4096;
-  while (!win && reads) {
-    char buffer[n];
-    reads = h_reads(num_socNew, buffer, n);
-    if (reads != n) {
-      printf("msg pas de la bonne taille ou client deconnecte\n");
-      break;
+  while (!win) {
+    int send = send_msg(client, "Entrer la proposition:\n");
+    if (send == -1) {
+      printf("Erreur à l'envoie : Entrer une proposition\n");
+      goto cleanup;
     }
-
-    char *try = check(buffer, n);
-    int writes = h_writes(num_socNew, try, n); // On envoie "TMF..."
-    if (writes != n) {
-      printf("probleme ecriture\n");
-      free(try);
-      break;
+    int read = receive_msg(client, try, n + 1); // fct bloquante
+    if (read == -1) {
+      goto cleanup;
     }
-
-    // Si la fonction check a passé win à 1, la partie est finie
-    if (win) {
-      free(try);
-      break;
+    answer = check(try, n);
+    send = send_msg(client, answer);
+    if (send == -1) {
+      printf("Erreur à l'envoie la correction\n");
+      goto cleanup;
     }
-
-    printf("\n");
-    // Seulement si le jeu continue, on redemande une proposition
-    h_writes(num_socNew, "Entrer la proposition",
-             strlen("Entrer la proposition"));
-
-    free(try); // Très important : empêche la fuite de mémoire à chaque tour
+    free(answer);
   }
-  h_close(num_socket);
-  h_close(num_socNew);
+
+cleanup:
+  if (try != NULL) {
+    free(try);
+  }
+  if (answer != NULL) {
+    free(answer);
+  }
+  h_close(client.num_socketCom);
+  h_close(client.num_socketInit);
 }
 
 /******************************************************************************/
