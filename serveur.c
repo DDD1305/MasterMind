@@ -124,7 +124,7 @@ int receive_level(socket_tcp socket) {
 
 void serveur_appli(char *service)
 
-/* Procedure correspondant au traitemnt du serveur de votre application */
+/* Procedure correspondant au traitement du serveur de votre application */
 
 {
   init_TCP_com(service);
@@ -139,7 +139,7 @@ void serveur_appli(char *service)
   // On initialise le jeu.
   init(level);
   char *answer = NULL;
-  char *try = malloc(n + 1); // pour avoir la chaine de taille n et \0
+  char *try = malloc(level + 1); // pour avoir la chaine de taille n et \0
   if (try == NULL) {
     printf("erreur alloction try");
     goto cleanup;
@@ -150,11 +150,11 @@ void serveur_appli(char *service)
       printf("Erreur à l'envoie : Entrer une proposition\n");
       goto cleanup;
     }
-    int read = receive_msg(client, try, n + 1); // fct bloquante
+    int read = receive_msg(client, try, level + 1); // fct bloquante
     if (read == -1) {
       goto cleanup;
     }
-    answer = check(try, n);
+    answer = check(try, level);
     send = send_msg(client, answer);
     if (send == -1) {
       printf("Erreur à l'envoie la correction\n");

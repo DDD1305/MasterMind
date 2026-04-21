@@ -81,7 +81,7 @@ int ask_level(int socket) {
   if (write != sizeof(int)) {
     return -1;
   }
-  return 0;
+  return niveau;
 }
 
 int send_msg(char *msg) {
@@ -106,7 +106,7 @@ int receive_msg(char *tampon, int taille) {
     return -1;
   }
   if (len > taille) {
-    printf("buffer tampon trop petit");
+    printf("buffer tampon trop petit\n");
     return -1;
   }
   read = h_reads(socketClient, tampon, len);
@@ -123,20 +123,24 @@ void client_appli(char *serveur, char *service)
 
 {
   socketClient = init_TCP_com(serveur, service);
+
+  if (ask_level(socketClient) == -1) {
+    printf("Erreur à la récupération du niveau\n");
+    goto cleanup;
+  }
+
   int taille_buff = level + 1;
   char *tampon_read = malloc(taille_buff);
   if (tampon_read == NULL) {
-    printf("Erreur allocation tampon_read");
+    printf("Erreur allocation tampon_read\n");
     goto cleanup;
   }
   char *tampon_write = malloc(taille_buff);
   if (tampon_write == NULL) {
-    printf("Erreur à l'allocation tampon_write");
+    printf("Erreur à l'allocation tampon_write\n");
     goto cleanup;
   }
-  if (ask_level(socket) == -1) {
-    printf("Erreur à la récupération du niveau\n");
-  }
+  
 
   while (!win) {
     // 1. Lire l'invitation du serveur ("Entrer la proposition" - 21 octets)
@@ -149,22 +153,24 @@ void client_appli(char *serveur, char *service)
 
     // 2. Saisir la proposition (attention : l'utilisateur doit taper tout
     // attaché, ex: "RVBB")
-    int take = 0;
-    while (!take) {
+    while (1) {
       scanf("%s", tampon_write);
       if (tampon_write[taille_buff] == '\0') {
-        take = 1;
+        break;
       }
+      printf("Il faut %i couleurs\nEntrer votre proposition:\n", level);
     }
 
     // 3. Envoyer UNIQUEMENT la taille attendue par le serveur (niveau)
-    h_writes(socket, tampon_write, level);
+    send_msg(tampon_write);
 
     // 4. Lire la réponse du serveur (qui fait exactement 'niveau' octets)
-    reads = h_reads(socket, tampon_read, level);
-    if (reads <= 0)
-      break;
-    printf("Résultat : %.*s\n\n", level, tampon_read);
+    read = receive_msg(tampon_read, taille_buff);
+    if (read == -1) {
+      printf("Erreur réception de la correction\n");
+      goto cleanup;
+    }
+    printf("Résultat : %.*s\n\n", read, tampon_read);
   }
 
   if (!win) {
@@ -172,9 +178,14 @@ void client_appli(char *serveur, char *service)
   }
 cleanup:
 
-  h_close(socket);
+if(tampon_read != NULL){
   free(tampon_read);
+}
+if(tampon_write != NULL){
   free(tampon_write);
+}
+
+h_close(socketClient);
 }
 
 /*****************************************************************************/
