@@ -69,6 +69,13 @@ typedef struct {
 
 socket_tcp client;
 
+/*
+ * Initialise la socket serveur :
+ *  - création de la socket TCP
+ *  - association à une adresse (bind)
+ *  - mise en écoute (listen)
+ *  - acceptation d'un client
+ */
 void init_TCP_com(char *service) {
   client.num_socketInit = h_socket(AF_INET, SOCK_STREAM);
   struct sockaddr_in *adr;
@@ -79,9 +86,14 @@ void init_TCP_com(char *service) {
   client.num_socketCom = h_accept(client.num_socketInit, &adr_client);
 }
 
+/*
+ * Reçoit le niveau de jeu envoyé par le client.
+ * Le niveau est transmis en format réseau (big endian),
+ * il faut donc le convertir avec ntohl.
+ */
 int send_msg(socket_tcp socket, char *msg) {
   int len = strlen(msg);
-  int lenNetwork = htonl(len);
+  int lenNetwork = ntohl(len);
   int write = h_writes(socket.num_socketCom, (char *)&lenNetwork,
                        sizeof(int)); // d'abord la taille du msg
   if (write != sizeof(int)) {
@@ -94,6 +106,18 @@ int send_msg(socket_tcp socket, char *msg) {
   return write;
 }
 
+/*
+ * Reçoit un message depuis le client :
+ *  - lit la taille du message
+ *  - convertit la taille (ntohl)
+ *  - vérifie que le buffer est suffisant
+ *  - lit le message
+ *  - ajoute un '\0' pour obtenir une chaîne C valide
+ *
+ * Retour :
+ *  - taille du message lu
+ *  - -1 en cas d'erreur
+ */
 int receive_msg(socket_tcp socket, char *tampon, int taille) {
   int lenNetwork;
   int read = h_reads(socket.num_socketCom, (char *)&lenNetwork,
@@ -110,6 +134,8 @@ int receive_msg(socket_tcp socket, char *tampon, int taille) {
   if (read != len) {
     return -1;
   }
+  // le réseau ne transmet pas le '\0',
+  // on doit donc l'ajouter manuellement après réception
   tampon[len]='\0';
   return read; // retourne la taille du msg lu ou -1 si erreur.
 }
@@ -137,6 +163,17 @@ int receive_level(socket_tcp socket) {
   return 0; // pas d'erreur
 }
 
+
+/*
+ * Boucle principale du serveur :
+ *  - envoie une consigne au client
+ *  - reçoit une proposition
+ *  - calcule la correction
+ *  - envoie la correction
+ *  - envoie l'état du jeu (WIN / CONTINUE / LOSE)
+ *
+ * La boucle s'arrête lorsque la partie est terminée.
+ */
 void serveur_appli(char *service)
 
 /* Procedure correspondant au traitement du serveur de votre application */
@@ -184,14 +221,12 @@ void serveur_appli(char *service)
 
     if(win){
       send = send_msg(client, "WIN");
-      printf("envoie win");
       if (send == -1) {
         printf("Erreur à l'envoie : %s\n", WIN);
         goto cleanup;
       }
     }else{
       send = send_msg(client, CONTINUE);
-      printf(CONTINUE);
       if (send == -1) {
         printf("Erreur à l'envoie : %s\n", CONTINUE);
         goto cleanup;
@@ -200,6 +235,11 @@ void serveur_appli(char *service)
   }
 
 cleanup:
+  /*
+ * Libère les ressources :
+ *  - mémoire allouée
+ *  - fermeture des sockets
+ */
   if (try != NULL) {
     free(try);
     try= NULL;

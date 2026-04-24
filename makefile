@@ -35,8 +35,7 @@ all: ${EXEC}
 
 
 fon.o :  fon.h fon.c
-	gcc -DDEBUG -c fon.c
-	#gcc -c fon.c
+	gcc -c fon.c
 
 client.o : fon.h	client.c 
 	gcc  $(CFLAGS) -c  client.c	
@@ -50,12 +49,5 @@ client : ${OBJ1}
 serveur : ${OBJ2}	
 	gcc $(LFLAGS) ${OBJ2} -o serveur -lcurses   $(OPTIONS)
 
-# jeu.o : jeu.h jeu.c
-# 	gcc -DDEBUG -c jeu.c
-#  	#gcc -c jeu.c
-
-
-
 clean : 
 	rm -f ${EXEC} core
-

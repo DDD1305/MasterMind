@@ -69,6 +69,11 @@ int main(int argc, char *argv[]) {
 
 int socketClient;
 
+/*
+ * Initialise la connexion TCP avec le serveur.
+ * Le client crée une socket, renseigne l'adresse du serveur,
+ * puis demande la connexion avec h_connect.
+ */
 int init_TCP_com(char *serveur, char *service) {
   int socket = h_socket(AF_INET, SOCK_STREAM);
   struct sockaddr_in *p_adr_socket;
@@ -77,6 +82,12 @@ int init_TCP_com(char *serveur, char *service) {
   return socket;
 }
 
+
+/*
+ * Demande le niveau au joueur et l'envoie au serveur.
+ * Le niveau est envoyé en format réseau avec htonl pour éviter
+ * les problèmes de représentation des entiers entre machines.
+ */
 int ask_level(int socket) {
   int niveau;
   printf("Entrer le niveau : ");
@@ -90,6 +101,11 @@ int ask_level(int socket) {
   return niveau;
 }
 
+/*
+ * Envoie un message selon le protocole :
+ * 1. taille du message en format réseau
+ * 2. contenu du message sans le '\0'
+ */
 int send_msg(char *msg) {
   int len = strlen(msg);
   int lenNetwork = htonl(len);
@@ -105,6 +121,13 @@ int send_msg(char *msg) {
   return write;
 }
 
+/*
+ * Reçoit un message selon le protocole :
+ * 1. lecture de la taille
+ * 2. conversion réseau -> machine
+ * 3. lecture du contenu
+ * 4. ajout manuel du '\0' pour obtenir une chaîne C valide
+ */
 int receive_msg(char *tampon, int taille) {
   int lenNetwork;
   int read = h_reads(socketClient, (char *)&lenNetwork,
@@ -112,8 +135,8 @@ int receive_msg(char *tampon, int taille) {
   if (read != sizeof(int)) {
     return -1;
   }
-  int len = htonl(lenNetwork);
-  if (len > taille) {
+  int len = ntohl(lenNetwork);
+  if (len < 0 || len >= taille) {
     printf("buffer tampon trop petit\n");
     return -1;
   }
@@ -126,6 +149,11 @@ int receive_msg(char *tampon, int taille) {
 }
 
 /*****************************************************************************/
+// Protocole de jeu :
+// serveur -> consigne
+// client  -> proposition
+// serveur -> correction
+// serveur -> état de la partie (WIN ou CONTINUE)
 void client_appli(char *serveur, char *service)
 
 /* procedure correspondant au traitement du client de votre application */
@@ -205,6 +233,10 @@ if(tampon_correction != NULL){
 }
 if(tampon_write != NULL){
   free(tampon_write);
+}
+
+if(tampon_consigne != NULL){
+  free(tampon_consigne);
 }
 
 h_close(socketClient);
