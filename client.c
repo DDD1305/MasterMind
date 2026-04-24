@@ -11,6 +11,7 @@
 /******************************************************************************/
 
 #include <curses.h> /* Primitives de gestion d'ecran */
+#include <netinet/in.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -24,6 +25,10 @@
 
 #define SERVICE_DEFAUT "1111"
 #define SERVEUR_DEFAUT "127.0.0.1"
+
+#define TAILLE_MSG 256
+
+int levelClient;
 
 void client_appli(char *serveur, char *service);
 
@@ -81,12 +86,14 @@ int ask_level(int socket) {
   if (write != sizeof(int)) {
     return -1;
   }
+  levelClient= niveau;
   return niveau;
 }
 
 int send_msg(char *msg) {
   int len = strlen(msg);
-  int write = h_writes(socketClient, (char *)&len,
+  int lenNetwork = htonl(len);
+  int write = h_writes(socketClient, (char *)&lenNetwork,
                        sizeof(int)); // d'abord la taille du msg
   if (write != sizeof(int)) {
     return -1;
@@ -99,12 +106,13 @@ int send_msg(char *msg) {
 }
 
 int receive_msg(char *tampon, int taille) {
-  int len;
-  int read = h_reads(socketClient, (char *)&len,
+  int lenNetwork;
+  int read = h_reads(socketClient, (char *)&lenNetwork,
                      sizeof(int)); // On lit d'abord la taille
   if (read != sizeof(int)) {
     return -1;
   }
+  int len = htonl(lenNetwork);
   if (len > taille) {
     printf("buffer tampon trop petit\n");
     return -1;
@@ -113,6 +121,7 @@ int receive_msg(char *tampon, int taille) {
   if (read != len) {
     return -1;
   }
+  tampon[len] = '\0';
   return read; // retourne la taille du msg lu ou -1 si erreur.
 }
 
@@ -129,10 +138,16 @@ void client_appli(char *serveur, char *service)
     goto cleanup;
   }
 
-  int taille_buff = level + 1;
-  char *tampon_read = malloc(taille_buff);
-  if (tampon_read == NULL) {
-    printf("Erreur allocation tampon_read\n");
+  char* tampon_consigne = malloc(TAILLE_MSG);
+  if(tampon_consigne == NULL){
+    printf("Erreur allocation tampon_consigne\n");
+    goto cleanup;
+  }
+
+  int taille_buff = levelClient + 1;
+  char *tampon_correction = malloc(taille_buff);
+  if (tampon_correction == NULL) {
+    printf("Erreur allocation tampon_correction\n");
     goto cleanup;
   }
   char *tampon_write = malloc(taille_buff);
@@ -141,51 +156,61 @@ void client_appli(char *serveur, char *service)
     goto cleanup;
   }
   
-
-  while (!win) {
+  int running =1;
+  while (running) {
     // 1. Lire l'invitation du serveur ("Entrer la proposition" - 21 octets)
-    int read = receive_msg(tampon_read, taille_buff);
+    int read = receive_msg(tampon_consigne, TAILLE_MSG);
     if (read == -1) {
-      printf("Erreur réception de msg\n");
+      printf("Erreur réception de msg A\n");
       goto cleanup;
     }
-    printf("%.*s\n", read, tampon_read);
+    printf("%.*s\n", read, tampon_consigne);
 
     // 2. Saisir la proposition (attention : l'utilisateur doit taper tout
     // attaché, ex: "RVBB")
     while (1) {
       scanf("%s", tampon_write);
-      if (tampon_write[taille_buff] == '\0') {
+      if (strlen(tampon_write) == (size_t) levelClient) {
         break;
       }
-      printf("Il faut %i couleurs\nEntrer votre proposition:\n", level);
+      printf("Il faut %i couleurs\nEntrer votre proposition:\n", levelClient);
     }
 
     // 3. Envoyer UNIQUEMENT la taille attendue par le serveur (niveau)
     send_msg(tampon_write);
 
     // 4. Lire la réponse du serveur (qui fait exactement 'niveau' octets)
-    read = receive_msg(tampon_read, taille_buff);
+    read = receive_msg(tampon_correction, taille_buff);
     if (read == -1) {
       printf("Erreur réception de la correction\n");
       goto cleanup;
     }
-    printf("Résultat : %.*s\n\n", read, tampon_read);
+    printf("Résultat : %.*s\n\n", read, tampon_correction);
+
+    read = receive_msg(tampon_consigne, TAILLE_MSG);
+    if (read == -1) {
+      printf("Erreur réception de msg\n");
+      goto cleanup;
+    }
+    if (read > 0 && strcmp(tampon_consigne, "WIN") == 0) {
+      running=0;
+    }
   }
 
-  if (!win) {
-    printf("Bravo, vous avez trouvé la bonne combinaison !\n");
-  }
+  
 cleanup:
 
-if(tampon_read != NULL){
-  free(tampon_read);
+if(tampon_correction != NULL){
+  free(tampon_correction);
 }
 if(tampon_write != NULL){
   free(tampon_write);
 }
 
 h_close(socketClient);
+if (!win) {
+    printf("Bravo, vous avez trouvé la bonne combinaison !\n");
+}
 }
 
 /*****************************************************************************/

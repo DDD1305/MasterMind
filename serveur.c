@@ -12,6 +12,7 @@
 /******************************************************************************/
 
 #include <curses.h>
+#include <netinet/in.h>
 #include <stdio.h>
 
 #include <stdlib.h>
@@ -26,6 +27,9 @@
 #include "jeu.h"
 
 #define SERVICE_DEFAUT "1111"
+
+#define CONTINUE "CONTINUE"
+#define WIN "WIN"
 
 void serveur_appli(char *service); /* programme serveur */
 
@@ -71,12 +75,14 @@ void init_TCP_com(char *service) {
   adr_socket(service, NULL, SOCK_STREAM, &adr);
   h_bind(client.num_socketInit, adr);
   h_listen(client.num_socketInit, 32);
-  client.num_socketCom = h_accept(client.num_socketInit, adr);
+  struct sockaddr_in adr_client;
+  client.num_socketCom = h_accept(client.num_socketInit, &adr_client);
 }
 
 int send_msg(socket_tcp socket, char *msg) {
   int len = strlen(msg);
-  int write = h_writes(socket.num_socketCom, (char *)&len,
+  int lenNetwork = htonl(len);
+  int write = h_writes(socket.num_socketCom, (char *)&lenNetwork,
                        sizeof(int)); // d'abord la taille du msg
   if (write != sizeof(int)) {
     return -1;
@@ -89,13 +95,14 @@ int send_msg(socket_tcp socket, char *msg) {
 }
 
 int receive_msg(socket_tcp socket, char *tampon, int taille) {
-  int len;
-  int read = h_reads(socket.num_socketCom, (char *)&len,
+  int lenNetwork;
+  int read = h_reads(socket.num_socketCom, (char *)&lenNetwork,
                      sizeof(int)); // On lit d'abord la taille
   if (read != sizeof(int)) {
     return -1;
   }
-  if (len > taille) {
+  int len = ntohl(lenNetwork);
+  if (len >= taille) {
     printf("buffer tampon trop petit");
     return -1;
   }
@@ -103,6 +110,7 @@ int receive_msg(socket_tcp socket, char *tampon, int taille) {
   if (read != len) {
     return -1;
   }
+  tampon[len]='\0';
   return read; // retourne la taille du msg lu ou -1 si erreur.
 }
 
@@ -110,10 +118,17 @@ int receive_level(socket_tcp socket) {
   int niveau_reseau;
   int reads =
       h_reads(socket.num_socketCom, (char *)&niveau_reseau, sizeof(int));
+  /*
+  if(reads ==0){
+    printf("Fermeture client");
+    return -1;
+  }*/
   if (reads != sizeof(int)) {
     printf("n mauvais format\n");
     return -1;
   }
+  
+
   level = ntohl(niveau_reseau);
   if (level <= 0 || level > 100) {
     printf("niveau invalide\n");
@@ -141,11 +156,11 @@ void serveur_appli(char *service)
   char *answer = NULL;
   char *try = malloc(level + 1); // pour avoir la chaine de taille n et \0
   if (try == NULL) {
-    printf("erreur alloction try");
+    printf("erreur allocation try");
     goto cleanup;
   }
   while (!win) {
-    int send = send_msg(client, "Entrer la proposition:\n");
+    int send = send_msg(client, "Entrer la proposition:");
     if (send == -1) {
       printf("Erreur à l'envoie : Entrer une proposition\n");
       goto cleanup;
@@ -154,6 +169,10 @@ void serveur_appli(char *service)
     if (read == -1) {
       goto cleanup;
     }
+    if(read ==0){
+    printf("Fermeture client");
+    goto cleanup;
+    }
     answer = check(try, level);
     send = send_msg(client, answer);
     if (send == -1) {
@@ -161,14 +180,33 @@ void serveur_appli(char *service)
       goto cleanup;
     }
     free(answer);
+    answer = NULL;
+
+    if(win){
+      send = send_msg(client, "WIN");
+      printf("envoie win");
+      if (send == -1) {
+        printf("Erreur à l'envoie : %s\n", WIN);
+        goto cleanup;
+      }
+    }else{
+      send = send_msg(client, CONTINUE);
+      printf(CONTINUE);
+      if (send == -1) {
+        printf("Erreur à l'envoie : %s\n", CONTINUE);
+        goto cleanup;
+      }
+    }
   }
 
 cleanup:
   if (try != NULL) {
     free(try);
+    try= NULL;
   }
   if (answer != NULL) {
     free(answer);
+    answer = NULL;
   }
   h_close(client.num_socketCom);
   h_close(client.num_socketInit);
